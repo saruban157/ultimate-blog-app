@@ -1,44 +1,16 @@
 import React from 'react'
-import { IoReorderThreeOutline } from 'react-icons/io5'
-import { BsBell } from 'react-icons/bs'
-import { FiEdit } from 'react-icons/fi'
 import { CiSearch } from 'react-icons/ci'
 import { HiChevronDown } from 'react-icons/hi'
 import classNames from 'classnames'
+import MainLayout from '../layouts/MainLayout'
+import WriteFormModal from '../components/WriteFormModal'
 
 const HomePage = () => {
   const defaultButtonStyle =
     'flex items-center space-x-3 rounded border border-gray-200 px-4 py-2.5 transition hover:border-gray-900'
+
   return (
-    <div className="flex h-full w-full flex-col">
-      {/* header */}
-      <header className="flex h-20 w-full flex-row items-center justify-around border-b-[1px] border-gray-200 bg-white">
-        {/* header left */}
-        <div>
-          <IoReorderThreeOutline className="text-2xl text-gray-600" />
-        </div>
-        {/* header center */}
-        <div className="text-xl font-thin">Ultimate Blog App</div>
-        {/* header right */}
-        <div className="flex items-center space-x-4">
-          <div>
-            <BsBell className="text-2xl" />
-          </div>
-          {/* account */}
-          <div>
-            <div className="h-5 w-5 rounded-full bg-gray-600" />
-          </div>
-          {/* new post button */}
-          <div>
-            <button className={classNames(defaultButtonStyle, '')}>
-              <div>Wtite</div>
-              <div>
-                <FiEdit className="text-gray-600" />
-              </div>
-            </button>
-          </div>
-        </div>
-      </header>
+    <MainLayout>
       {/* main section */}
       <section className="grid grid-cols-12">
         {/* main part */}
@@ -193,8 +165,6 @@ const HomePage = () => {
             </div>
           </div>
           {/* Reading list */}
-          {/* stickyで固定 */}
-          {/* <div className="sticky top-10"> */}
           <div>
             <h3 className="my-6 text-lg font-semibold">Your reading list</h3>
             <div className="flex flex-col space-y-8">
@@ -225,7 +195,9 @@ const HomePage = () => {
           </div>
         </aside>
       </section>
-    </div>
+      {/* Modal(sidebar) */}
+      <WriteFormModal />
+    </MainLayout>
   )
 }
 
