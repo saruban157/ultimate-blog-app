@@ -5,17 +5,22 @@ import classNames from 'classnames'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { trpc } from '../../utils/trpc'
+import { toast } from 'react-hot-toast'
+import { AiOutlineLoading3Quarters } from 'react-icons/ai'
 
 type WriteFormType = {
   title: string
   description: string
-  body: string
+  text: string
+  slug: string
 }
 
-const writeFormSchema = z.object({
+export const writeFormSchema = z.object({
   title: z.string().min(5),
   description: z.string().min(10),
-  body: z.string().min(20),
+  text: z.string().min(20),
+  slug: z.string().min(5),
 })
 
 const WriteFormModal = () => {
@@ -30,19 +35,38 @@ const WriteFormModal = () => {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<WriteFormType>({
     resolver: zodResolver(writeFormSchema),
   })
 
+  const postRoute = trpc.useContext().post
+
+  const createPost = trpc.post.createPost.useMutation({
+    onSuccess: () => {
+      toast.success('Post created successfully !')
+      setIsWriteModalOpen(false)
+      reset()
+      postRoute.getPosts.invalidate()
+    },
+  })
+
   // publish button component
-  const onSubmit = (data: WriteFormType) => console.log(data)
+  const onSubmit = (data: WriteFormType) => {
+    createPost.mutate(data)
+  }
 
   return (
     <Modal isOpen={isWriteModalOpen} onClose={() => setIsWriteModalOpen(false)}>
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="flex flex-col items-center justify-center space-y-4"
+        className="relative flex flex-col items-center justify-center space-y-4"
       >
+        {createPost.isLoading && (
+          <div className="absolute flex h-full w-full items-center justify-center">
+            <AiOutlineLoading3Quarters className="animate-spin" />
+          </div>
+        )}
         <input
           type="text"
           id="title"
@@ -56,6 +80,16 @@ const WriteFormModal = () => {
         </p>
         <input
           type="text"
+          id="slug"
+          className={classNames(inputFormStyle, '')}
+          placeholder="Slug"
+          {...register('slug')}
+        />
+        <p className="w-full pb-2 text-left text-sm text-red-500">
+          {errors.slug?.message}
+        </p>
+        <input
+          type="text"
           {...register('description')}
           id="shortDescription"
           className={classNames(inputFormStyle, '')}
@@ -66,7 +100,7 @@ const WriteFormModal = () => {
         </p>
 
         <textarea
-          {...register('body')}
+          {...register('text')}
           id="mainBody"
           cols={10}
           rows={10}
@@ -74,7 +108,7 @@ const WriteFormModal = () => {
           placeholder="Content"
         />
         <p className="w-full pb-2 text-left text-sm text-red-500">
-          {errors.body?.message}
+          {errors.text?.message}
         </p>
         <div className="flex w-full justify-end">
           <button

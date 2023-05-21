@@ -5,6 +5,7 @@ import { FiEdit, FiLogOut } from 'react-icons/fi'
 import classNames from 'classnames'
 import { signIn, useSession, signOut } from 'next-auth/react'
 import { GlobalContext } from '../../contexts/GlobalContextProvider'
+import Link from 'next/link'
 
 const Header = () => {
   const defaultButtonStyle =
@@ -19,7 +20,9 @@ const Header = () => {
         <IoReorderThreeOutline className="text-2xl text-gray-600" />
       </div>
       {/* header center */}
-      <div className="text-xl font-thin">Ultimate Blog App</div>
+      <Link href={'/'} className="cursor-pointer select-none text-xl font-thin">
+        Ultimate Blog App
+      </Link>
       {/* header right */}
       {status === 'authenticated' ? (
         <div className="flex items-center space-x-4">
