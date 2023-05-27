@@ -2,14 +2,21 @@ import slugify from 'slugify'
 import { writeFormSchema } from '../../../components/WriteFormModal'
 import { router, protectedProcedure, publicProcedure } from '../trpc'
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 
 export const postRouter = router({
   createPost: protectedProcedure
-    .input(writeFormSchema)
+    .input(
+      writeFormSchema.and(
+        z.object({
+          tagsIds: z.array(z.object({ id: z.string() })).optional(),
+        })
+      )
+    )
     .mutation(
       async ({
         ctx: { prisma, session },
-        input: { title, slug, description, text },
+        input: { title, slug, description, text, tagsIds },
       }) => {
         await prisma.post.create({
           data: {
@@ -22,6 +29,38 @@ export const postRouter = router({
                 id: session.user.id,
               },
             },
+            tags: {
+              connect: tagsIds,
+            },
+          },
+        })
+      }
+    ),
+
+  updatePostFeatureImage: protectedProcedure
+    .input(
+      z.object({
+        imageUrl: z.string().url(),
+        postId: z.string(),
+      })
+    )
+    .mutation(
+      async ({ ctx: { prisma, session }, input: { imageUrl, postId } }) => {
+        const postData = await prisma.post.findUnique({
+          where: {
+            id: postId,
+          },
+        })
+
+        if (postData?.authorId !== session.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN' })
+        }
+        await prisma.post.update({
+          where: {
+            id: postId,
+          },
+          data: {
+            featuredImage: imageUrl,
           },
         })
       }
@@ -38,10 +77,12 @@ export const postRouter = router({
         title: true,
         description: true,
         createdAt: true,
+        featuredImage: true,
         author: {
           select: {
             name: true,
             image: true,
+            username: true,
           },
         },
         bookmarks: session?.user?.id
@@ -51,7 +92,15 @@ export const postRouter = router({
               },
             }
           : false,
+        tags: {
+          select: {
+            name: true,
+            id: true,
+            slug: true,
+          },
+        },
       },
+      take: 10,
     })
 
     return posts
@@ -80,6 +129,9 @@ export const postRouter = router({
                 },
               }
             : false,
+          authorId: true,
+          slug: true,
+          featuredImage: true,
         },
       })
       return post
@@ -149,4 +201,89 @@ export const postRouter = router({
         },
       })
     }),
+  submitComment: protectedProcedure
+    .input(
+      z.object({
+        text: z.string().min(3),
+        postId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx: { prisma, session }, input: { text, postId } }) => {
+      await prisma.comment.create({
+        data: {
+          text,
+          user: {
+            connect: {
+              id: session.user.id,
+            },
+          },
+          post: {
+            connect: {
+              id: postId,
+            },
+          },
+        },
+      })
+    }),
+  // Get Comments
+  getComments: publicProcedure
+    .input(
+      z.object({
+        postId: z.string(),
+      })
+    )
+    .query(async ({ ctx: { prisma }, input: { postId } }) => {
+      const comments = await prisma.comment.findMany({
+        where: {
+          postId,
+        },
+        select: {
+          id: true,
+          text: true,
+          user: {
+            select: {
+              name: true,
+              image: true,
+            },
+          },
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      })
+
+      return comments
+    }),
+  getReadingList: protectedProcedure.query(
+    async ({ ctx: { prisma, session } }) => {
+      const allBookmarks = await prisma.bookmark.findMany({
+        where: {
+          userId: session.user.id,
+        },
+        take: 4,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          id: true,
+          post: {
+            select: {
+              title: true,
+              description: true,
+              author: {
+                select: {
+                  name: true,
+                  image: true,
+                },
+              },
+              createdAt: true,
+              slug: true,
+            },
+          },
+        },
+      })
+      return allBookmarks
+    }
+  ),
 })

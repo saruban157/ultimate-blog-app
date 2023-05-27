@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { CiBookmarkCheck, CiBookmarkPlus } from 'react-icons/ci'
 import { trpc } from '../../utils/trpc'
 import type { RouterOutputs } from '../../utils/trpc'
@@ -25,13 +25,20 @@ const Post = ({ ...post }: PostProps) => {
     },
   })
 
+  useEffect(() => {
+    setIsBookmarked(isBookmarked)
+  }, [isBookmarked])
+
   return (
     <div
       key={post.id}
       className="flex flex-col space-y-4 border-b border-gray-300 pb-8 last:border-none"
     >
       {/* Author and Created at */}
-      <div className="group flex w-full items-center space-x-2">
+      <Link
+        href={`/user/${post.author.username}`}
+        className="group flex w-full cursor-pointer items-center space-x-2"
+      >
         {/* Author icon */}
         <div className="relative h-10 w-10 rounded-full bg-gray-400">
           {post.author.image && (
@@ -46,14 +53,17 @@ const Post = ({ ...post }: PostProps) => {
         </div>
         <div>
           <p className="font-semibold">
-            {post.author.name} &#x2022;
+            <span className="mr-1 decoration-black group-hover:underline">
+              {post.author.name}
+            </span>
+            &#x2022;
             <span className="mx-1">
               {dayjs(post.createdAt).format('YYYY/MM/DD')}
             </span>
           </p>
           <p className="text-sm">Developer</p>
         </div>
-      </div>
+      </Link>
       <Link
         href={`/${post.slug !== '' ? post.slug : 'not-found'}`}
         className="group grid h-44 w-full grid-cols-12 gap-4 overflow-hidden"
@@ -69,16 +79,26 @@ const Post = ({ ...post }: PostProps) => {
         </div>
         {/* Image */}
         <div className="col-span-4">
-          <div className="h-full w-full transform rounded-xl bg-gray-300 transition duration-300 hover:scale-105 hover:shadow-xl"></div>
+          <div className="h-full w-full transform rounded-xl bg-gray-300 transition duration-300 hover:scale-105 hover:shadow-xl">
+            {post.featuredImage && (
+              <Image src={post.featuredImage} alt={post.title} fill />
+            )}
+          </div>
         </div>
       </Link>
       {/* tags */}
       <div>
         <div className="flex w-full items-center justify-between space-x-4">
           <div className="flex items-center space-x-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-2xl bg-gray-200/50 px-5 py-3">
-                tag {i}
+            {post.tags.map((tag) => (
+              <div
+                key={tag.id}
+                onClick={() => {
+                  // Tag page
+                }}
+                className="rounded-2xl bg-gray-200/50 px-5 py-3"
+              >
+                {tag.name}
               </div>
             ))}
           </div>
