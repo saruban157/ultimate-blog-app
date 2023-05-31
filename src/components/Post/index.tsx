@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import Image from 'next/image'
 import Link from 'next/link'
 
-type PostProps = RouterOutputs['post']['getPosts'][number]
+type PostProps = RouterOutputs['post']['getPosts']['posts'][number]
 
 // Post part(include bookmark)
 const Post = ({ ...post }: PostProps) => {
@@ -45,8 +45,8 @@ const Post = ({ ...post }: PostProps) => {
             <Image
               src={post.author.image}
               alt={post.author.name ?? 'icon'}
-              fill
               className="rounded-full"
+              fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           )}
@@ -79,9 +79,14 @@ const Post = ({ ...post }: PostProps) => {
         </div>
         {/* Image */}
         <div className="col-span-4">
-          <div className="h-full w-full transform rounded-xl bg-gray-300 transition duration-300 hover:scale-105 hover:shadow-xl">
+          <div className="relative h-full w-full transform rounded-xl bg-gray-300 transition duration-300 hover:scale-105 hover:shadow-xl">
             {post.featuredImage && (
-              <Image src={post.featuredImage} alt={post.title} fill />
+              <Image
+                src={post.featuredImage}
+                alt={post.title}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
             )}
           </div>
         </div>

@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { protectedProcedure, publicProcedure, router } from '../trpc'
 import isDataURI from 'validator/lib/isDataURI'
-
 import { decode } from 'base64-arraybuffer'
 import { createClient } from '@supabase/supabase-js'
 import { env } from '../../../env/server.mjs'
@@ -15,8 +14,12 @@ const supabase = createClient(
 export const userRouter = router({
   // Get User Profile
   getUserProfile: publicProcedure
-    .input(z.object({ username: z.string() }))
-    .query(async ({ ctx: { prisma }, input: { username } }) => {
+    .input(
+      z.object({
+        username: z.string(),
+      })
+    )
+    .query(async ({ ctx: { prisma, session }, input: { username } }) => {
       return await prisma.user.findUnique({
         where: {
           username: username,
@@ -29,8 +32,17 @@ export const userRouter = router({
           _count: {
             select: {
               posts: true,
+              followedBy: true,
+              followings: true,
             },
           },
+          followedBy: session?.user?.id
+            ? {
+                where: {
+                  id: session.user.id,
+                },
+              }
+            : false,
         },
       })
     }),
@@ -53,6 +65,7 @@ export const userRouter = router({
               slug: true,
               title: true,
               description: true,
+              featuredImage: true,
               createdAt: true,
               author: {
                 select: {
@@ -114,6 +127,212 @@ export const userRouter = router({
         },
         data: {
           image: publicUrl,
+        },
+      })
+    }),
+
+  getSuggestions: protectedProcedure.query(
+    async ({ ctx: { prisma, session } }) => {
+      // const likes = await prisma.like.findMany({
+      //   where: {
+      //     userId: session.user.id,
+      //   },
+      //   select: {
+      //     post: {
+      //       select: {
+      //         tags: {
+      //           select: {
+      //             name: true,
+      //           },
+      //         },
+      //       },
+      //     },
+      //   },
+      //   take: 10,
+      // })
+
+      const tagsQuery = {
+        where: {
+          userId: session.user.id,
+        },
+        select: {
+          post: {
+            select: {
+              tags: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        take: 10,
+      }
+
+      const likedPostTags = await prisma.like.findMany(tagsQuery)
+      const bookmarkedPostTags = await prisma.bookmark.findMany(tagsQuery)
+
+      const interestedTags: string[] = []
+
+      likedPostTags.forEach((like) => {
+        interestedTags.push(...like.post.tags.map((tag) => tag.name))
+      })
+
+      bookmarkedPostTags.forEach((bookmark) => {
+        interestedTags.push(...bookmark.post.tags.map((tag) => tag.name))
+      })
+
+      const suggestions = await prisma.user.findMany({
+        where: {
+          OR: [
+            {
+              likes: {
+                some: {
+                  post: {
+                    tags: {
+                      some: {
+                        name: {
+                          in: interestedTags,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            {
+              bookmarks: {
+                some: {
+                  post: {
+                    tags: {
+                      some: {
+                        name: {
+                          in: interestedTags,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+          NOT: {
+            id: session.user.id,
+          },
+        },
+        select: {
+          name: true,
+          image: true,
+          username: true,
+          id: true,
+        },
+        take: 4,
+      })
+
+      return suggestions
+    }
+  ),
+
+  followUser: protectedProcedure
+    .input(
+      z.object({
+        followingUserId: z.string(),
+      })
+    )
+    .mutation(
+      async ({ ctx: { prisma, session }, input: { followingUserId } }) => {
+        if (followingUserId === session.user.id) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: "You can't follow yourself",
+          })
+        }
+
+        await prisma.user.update({
+          where: {
+            id: session.user.id,
+          },
+          data: {
+            followings: {
+              connect: {
+                id: followingUserId,
+              },
+            },
+          },
+        })
+      }
+    ),
+
+  unfollowUser: protectedProcedure
+    .input(
+      z.object({
+        followingUserId: z.string(),
+      })
+    )
+    .mutation(
+      async ({ ctx: { prisma, session }, input: { followingUserId } }) => {
+        await prisma.user.update({
+          where: {
+            id: session.user.id,
+          },
+          data: {
+            followings: {
+              disconnect: {
+                id: followingUserId,
+              },
+            },
+          },
+        })
+      }
+    ),
+  getAllFollowers: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+      })
+    )
+    .query(async ({ ctx: { prisma, session }, input: { userId } }) => {
+      return await prisma.user.findUnique({
+        where: {
+          id: userId,
+        },
+        select: {
+          followedBy: {
+            select: {
+              name: true,
+              username: true,
+              id: true,
+              image: true,
+              followedBy: {
+                where: {
+                  id: session.user.id,
+                },
+              },
+            },
+          },
+        },
+      })
+    }),
+  getAllFollowing: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+      })
+    )
+    .query(async ({ ctx: { prisma }, input: { userId } }) => {
+      return await prisma.user.findUnique({
+        where: {
+          id: userId,
+        },
+        select: {
+          followings: {
+            select: {
+              name: true,
+              username: true,
+              id: true,
+              image: true,
+            },
+          },
         },
       })
     }),

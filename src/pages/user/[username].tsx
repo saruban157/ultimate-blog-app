@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast'
 import classNames from 'classnames'
 import Post from '../../components/Post'
 import { useSession } from 'next-auth/react'
+import Modal from '../../components/Modal'
 
 const UserProfilePage = () => {
   const router = useRouter()
@@ -77,8 +78,115 @@ const UserProfilePage = () => {
     }
   }
 
+  const [isFollowModalOpen, setIsFollowModalOpen] = useState({
+    isOpen: false,
+    modalType: 'followers',
+  })
+
+  const followers = trpc.user.getAllFollowers.useQuery(
+    {
+      userId: userProfile?.data?.id as string,
+    },
+    {
+      enabled: Boolean(userProfile?.data?.id),
+    }
+  )
+
+  const following = trpc.user.getAllFollowing.useQuery(
+    {
+      userId: userProfile?.data?.id as string,
+    },
+    {
+      enabled: Boolean(userProfile?.data?.id),
+    }
+  )
+
+  const followUser = trpc.user.followUser.useMutation({
+    onSuccess: () => {
+      userRoute.getAllFollowers.invalidate()
+      userRoute.getAllFollowing.invalidate()
+      userRoute.getUserProfile.invalidate()
+      toast.success('User followed')
+    },
+    onError: (err) => {
+      toast.error(err.message)
+    },
+  })
+
+  const unfollowUser = trpc.user.unfollowUser.useMutation({
+    onSuccess: () => {
+      userRoute.getAllFollowers.invalidate()
+      userRoute.getAllFollowing.invalidate()
+      userRoute.getUserProfile.invalidate()
+      toast.success('User unfollowed')
+    },
+  })
+
   return (
     <MainLayout>
+      {followers.isSuccess && following.isSuccess && (
+        <Modal
+          isOpen={isFollowModalOpen.isOpen}
+          onClose={() =>
+            setIsFollowModalOpen((pre) => ({ ...pre, isOpen: false }))
+          }
+        >
+          <div className="flex w-full flex-col items-center justify-center space-y-4">
+            {isFollowModalOpen.modalType === 'followers' && (
+              <div className="flex w-full flex-col justify-center">
+                <h3 className="my-2 p-2 text-xl">Followers</h3>
+                {followers.data?.followedBy.map((user) => (
+                  <div
+                    key={user.id}
+                    className="my-1 flex w-full items-center justify-between rounded-xl bg-gray-200 px-4 py-2"
+                  >
+                    <div>{user.name}</div>
+                    <button
+                      onClick={() =>
+                        user.followedBy.length > 0
+                          ? unfollowUser.mutate({
+                              followingUserId: user.id,
+                            })
+                          : followUser.mutate({
+                              followingUserId: user.id,
+                            })
+                      }
+                      className="flex items-center space-x-3 rounded border border-gray-400/50 bg-white px-4 py-2 transition hover:border-gray-900 hover:text-gray-900"
+                    >
+                      {user.followedBy.length > 0 ? 'Unfollow' : 'Follow'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {isFollowModalOpen.modalType === 'following' && (
+              <div className="flex w-full flex-col justify-center">
+                <h3 className="my-2 p-2 text-xl">Followings</h3>
+                {following.data?.followings.map((user) => (
+                  <div
+                    key={user.id}
+                    className="my-1 flex w-full items-center justify-between rounded-xl bg-gray-200 px-4 py-2"
+                  >
+                    <div>{user.name}</div>
+                    <div>
+                      <button
+                        onClick={() =>
+                          unfollowUser.mutate({
+                            followingUserId: user.id,
+                          })
+                        }
+                        className="flex items-center space-x-3 rounded border border-gray-400/50 bg-white px-4 py-2 transition hover:border-gray-900 hover:text-gray-900"
+                      >
+                        Unfollow
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
       <div className="flex h-full w-full items-center justify-center">
         <div className="my-10 flex h-full w-full flex-col items-center justify-center lg:max-w-screen-md xl:max-w-screen-lg">
           {/* Head part */}
@@ -87,14 +195,13 @@ const UserProfilePage = () => {
               {/* Avatar icon */}
               <div className="absolute -bottom-10 left-12">
                 {/* animation mouse hover*/}
-                <div className="group relative h-28 w-28 cursor-pointer rounded-full border-2 border-white bg-gray-100">
+                <div className="group relative h-28 w-28 rounded-full border-2 border-white bg-gray-100">
                   {/* Select file button */}
                   {currentUser.data?.user?.id === userProfile.data?.id && (
                     <label
-                      htmlFor="avatarFile"
-                      className="absolute z-10 flex h-full w-full items-center justify-center rounded-full transition duration-500 group-hover:bg-black/20"
+                      // htmlFor="avatarFile"
+                      className="absolute z-10 flex h-full w-full cursor-pointer items-center justify-center rounded-full transition group-hover:bg-black/40"
                     >
-                      <BiEdit className="hidden text-3xl text-white group-hover:block" />
                       <input
                         type="file"
                         name="avatarFile"
@@ -104,15 +211,15 @@ const UserProfilePage = () => {
                         onChange={handleChangeImage}
                         multiple={false}
                       />
+                      <BiEdit className="hidden text-3xl text-white group-hover:block" />
                     </label>
                   )}
-                  {/* <Avatar src={''} alt={''} /> */}
                   {!objectImage && userProfile.data?.image && (
                     <Image
                       src={userProfile.data?.image}
                       alt={userProfile.data?.name ?? ''}
+                      className="h-full w-full rounded-full"
                       fill
-                      className="rounded-full"
                     />
                   )}
                   {objectImage && (
@@ -131,10 +238,42 @@ const UserProfilePage = () => {
               <div className="text-2xl font-semibold text-gray-800">
                 {userProfile.data?.name}
               </div>
-              <div>@{userProfile.data?.username}</div>
-              <div>{userProfile.data?._count.posts ?? 0} Posts</div>
+              <div className="text-gray-600">@{userProfile.data?.username}</div>
+              <div className="text-gray-600">
+                {userProfile.data?._count.posts} Posts
+              </div>
+              {/* Followers and Followings */}
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() =>
+                    setIsFollowModalOpen({
+                      isOpen: true,
+                      modalType: 'followers',
+                    })
+                  }
+                  className="text-gray-700 hover:text-gray-900"
+                >
+                  <span className="text-gray-900">
+                    {userProfile.data?._count.followedBy} Followers
+                  </span>
+                </button>
+                <button
+                  onClick={() =>
+                    setIsFollowModalOpen({
+                      isOpen: true,
+                      modalType: 'following',
+                    })
+                  }
+                  className="text-gray-700 hover:text-gray-900"
+                >
+                  <span className="text-gray-900">
+                    {userProfile.data?._count.followings} Followings
+                  </span>
+                </button>
+              </div>
+
               {/* Share button */}
-              <div>
+              <div className="flex w-full items-center space-x-4">
                 <button
                   onClick={() => {
                     // navigator.clipboard⇒クリップボードにコピー
@@ -147,15 +286,37 @@ const UserProfilePage = () => {
                   )}
                 >
                   <div>Share</div>
-                  <SlShareAlt />
+                  <div>
+                    <SlShareAlt />
+                  </div>
                 </button>
+                {userProfile.isSuccess && userProfile.data?.followedBy && (
+                  <button
+                    onClick={() => {
+                      if (userProfile.data?.id) {
+                        userProfile.data.followedBy.length > 0
+                          ? unfollowUser.mutate({
+                              followingUserId: userProfile.data?.id,
+                            })
+                          : followUser.mutate({
+                              followingUserId: userProfile.data?.id,
+                            })
+                      }
+                    }}
+                    className="mt-2 flex items-center space-x-3 rounded border border-gray-400/50 bg-white px-4 py-2 transition hover:border-gray-900 hover:text-gray-900"
+                  >
+                    {userProfile.data?.followedBy.length > 0
+                      ? 'Unfollow'
+                      : 'Follow'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
           <div className="my-10 w-full">
             {userPosts.isSuccess &&
-              userPosts.data?.posts.map((user) => (
-                <Post {...user} key={user.id} />
+              userPosts.data?.posts.map((post) => (
+                <Post {...post} key={post.id} />
               ))}
           </div>
         </div>

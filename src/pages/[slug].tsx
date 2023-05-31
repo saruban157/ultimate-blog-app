@@ -10,6 +10,7 @@ import { BiImageAdd } from 'react-icons/bi'
 import UnsplashGallery from '../components/UnsplashGallery'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
+import { Interweave } from 'interweave'
 
 const PostPage = () => {
   const router = useRouter()
@@ -123,6 +124,7 @@ const PostPage = () => {
                 src={getPost.data?.featuredImage}
                 alt={getPost.data?.title}
                 fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="rounded-xl"
               />
             )}
@@ -147,7 +149,15 @@ const PostPage = () => {
             {getPost.data?.description}
           </div>
           {/* Main articles */}
-          <div>{getPost.data?.text} </div>
+          {/* <div>{getPost.data?.text} </div> */}
+          <div
+            className="prose lg:prose-xl"
+            // dangerouslySetInnerHTML={{
+            //   __html: getPost.data?.html ?? '',
+            // }}
+          >
+            <Interweave content={getPost.data?.html} />
+          </div>
         </div>
       </div>
     </MainLayout>

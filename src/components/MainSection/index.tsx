@@ -4,9 +4,16 @@ import { HiChevronDown } from 'react-icons/hi'
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'
 import { trpc } from '../../utils/trpc'
 import Post from '../Post'
+import InfiniteScroll from 'react-infinite-scroll-component'
+import { BiLoaderCircle } from 'react-icons/bi'
 
 const MainSection = () => {
-  const getPosts = trpc.post.getPosts.useQuery()
+  const getPosts = trpc.post.getPosts.useInfiniteQuery(
+    {},
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+    }
+  )
 
   return (
     <main className="col-span-8 border-r border-gray-300 px-24">
@@ -14,14 +21,12 @@ const MainSection = () => {
       <div className="flex w-full flex-col space-y-4 py-10">
         <div className="flex w-full items-center space-x-4">
           <label
-            htmlFor="search"
+            // htmlFor="search"
             className="relative w-full rounded-3xl border border-gray-800"
           >
-            {/* search icon */}
-            <div className="absolute left-2 flex h-full items-center">
+            <div className="absolute left-2 flex h-full items-center ">
               <CiSearch />
             </div>
-            {/* search bar */}
             <input
               type="text"
               name="search"
@@ -68,8 +73,28 @@ const MainSection = () => {
           </div>
         )}
         {/* Posts */}
-        {getPosts.isSuccess &&
-          getPosts.data.map((post) => <Post {...post} key={post.id} />)}
+        <InfiniteScroll
+          dataLength={
+            getPosts.data?.pages.flatMap((page) => page.posts).length ?? 0
+          }
+          next={getPosts.fetchNextPage}
+          hasMore={Boolean(getPosts.hasNextPage)}
+          loader={
+            <div className="flex h-full w-full items-center justify-center">
+              <BiLoaderCircle className="animate-spin" />
+            </div>
+          }
+          endMessage={
+            <p className="text-center">
+              <b>YaY!</b>
+            </p>
+          }
+        >
+          {getPosts.isSuccess &&
+            getPosts.data.pages
+              .flatMap((page) => page.posts)
+              .map((post) => <Post {...post} key={post.id} />)}
+        </InfiniteScroll>
       </div>
     </main>
   )

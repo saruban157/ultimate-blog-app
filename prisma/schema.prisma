@@ -12,6 +12,7 @@ datasource db {
   // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
   // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
   url      = env("DATABASE_URL")
+  // relationMode = "prisma"
 }
 
 model Example {
@@ -60,6 +61,8 @@ model User {
   likes         Like[]
   bookmarks     Bookmark[]
   username      String?    @unique
+  followedBy    User[]     @relation("UserFollows")
+  followings    User[]     @relation("UserFollows")
 }
 
 model VerificationToken {
@@ -79,8 +82,8 @@ model Post {
   slug          String  @unique
   featuredImage String?
 
-  html String? @db.Text
-  text String? @db.Text
+  html String? // @db.Text
+  text String? // @db.Text
 
   authorId String
   author   User   @relation(fields: [authorId], references: [id])
@@ -104,7 +107,7 @@ model Tag {
 
 model Comment {
   id     String @id @default(cuid())
-  text   String @db.Text
+  text   String // @db.Text
   userId String
   postId String
   user   User   @relation(fields: [userId], references: [id])

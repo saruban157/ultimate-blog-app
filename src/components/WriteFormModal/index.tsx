@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react'
 import { GlobalContext } from '../../contexts/GlobalContextProvider'
 import Modal from '../Modal'
 import classNames from 'classnames'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { trpc } from '../../utils/trpc'
@@ -11,6 +11,9 @@ import { AiOutlineLoading3Quarters } from 'react-icons/ai'
 import TagsAutoCompletion from '../TagsAutoCompletion'
 import TagForm from '../TagForm'
 import { FaTimes } from 'react-icons/fa'
+// import ReactQuill from 'react-quill'
+import dynamic from 'next/dynamic'
+import 'react-quill/dist/quill.snow.css'
 
 export type TAG = { id: string; name: string }
 
@@ -19,19 +22,23 @@ type WriteFormType = {
   description: string
   text: string
   slug: string
+  html: string
 }
 
 export const writeFormSchema = z.object({
   title: z.string().min(5),
   description: z.string().min(10),
-  text: z.string().min(20),
+  text: z.string().min(20).optional(),
   slug: z.string().min(5),
+  html: z.string().min(20),
 })
 
 const inputFormStyle =
   'h-full w-full rounded-xl border border-gray-300 p-4 outline-none focus:border-gray-600'
 const defaultButtonStyle =
   'flex items-center space-x-3 rounded border border-gray-200 px-4 py-2.5 transition hover:border-gray-900'
+
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false })
 
 const WriteFormModal = () => {
   const { isWriteModalOpen, setIsWriteModalOpen } = useContext(GlobalContext)
@@ -41,6 +48,7 @@ const WriteFormModal = () => {
     handleSubmit,
     formState: { errors },
     reset,
+    control,
   } = useForm<WriteFormType>({
     resolver: zodResolver(writeFormSchema),
   })
@@ -126,7 +134,6 @@ const WriteFormModal = () => {
         )}
         <form
           onSubmit={handleSubmit((data) => {
-            console.log(data)
             onSubmit(data)
           })}
           className="relative flex flex-col items-center justify-center space-y-4"
@@ -168,13 +175,28 @@ const WriteFormModal = () => {
             {errors.description?.message}
           </p>
 
-          <textarea
+          {/* <textarea
             {...register('text')}
             id="mainBody"
             cols={10}
             rows={10}
             className={classNames(inputFormStyle, '')}
             placeholder="Content"
+          /> */}
+          <Controller
+            name="html"
+            control={control}
+            render={({ field }) => (
+              <div className="w-full">
+                <ReactQuill
+                  theme="snow"
+                  {...field}
+                  placeholder="Blog Content"
+                  value={field.value}
+                  onChange={(value) => field.onChange(value)}
+                />
+              </div>
+            )}
           />
           <p className="w-full pb-2 text-left text-sm text-red-500">
             {errors.text?.message}
